@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+backend/venv/
+
+# Environment / secrets
+.env
+.env.*
+backend/.env
+backend/.env*
+!.env.example
+
+# Databases / runtime data
+*.db
+*.sqlite
+*.sqlite3
+backend/papers.json
+
+# Uploaded PDFs and backups
+backend/uploads/
+backend/uploads.backup/
+backend/uploads.untracked_backup/
+
+# Backup / temporary files
+*.backup
+*.before_*
+*.save
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Frontend
+node_modules/
+.next/
+dist/
+build/
