@@ -2,7 +2,13 @@ from pathlib import Path
 import hashlib
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    UploadFile,
+    File
+)
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .database import (
@@ -22,12 +28,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
 
 app = FastAPI(
     title="Research Paper AI",
     description="AI-powered research paper recommendation and literature analysis platform",
     version="1.0.0"
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 
 search_engine = None
@@ -83,6 +103,12 @@ async def upload_paper(file: UploadFile = File(...)):
             detail="Uploaded file is empty"
         )
 
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="PDF file size must not exceed 50 MB"
+        )
+
     file_hash = hashlib.sha256(contents).hexdigest()
 
     existing_paper = get_paper_by_hash(file_hash)
@@ -125,6 +151,24 @@ async def upload_paper(file: UploadFile = File(...)):
         paper_id,
         paper_chunks
     )
+
+    if paper_chunks == 0:
+        # Remove invalid/unindexed PDF
+        if file_path.exists():
+            file_path.unlink()
+
+        delete_paper_db(paper_id)
+
+        # Rebuild index after cleanup
+        search_engine.rebuild_index()
+
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No readable text could be extracted "
+                "from this PDF. The file was not added."
+            )
+        )
 
     paper = get_paper(paper_id)
 
